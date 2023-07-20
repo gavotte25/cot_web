@@ -1,156 +1,382 @@
-const chatInput = document.querySelector("#chat-input");
-const sendButton = document.querySelector("#send-btn");
-const chatContainer = document.querySelector(".chat-container");
-const themeButton = document.querySelector("#theme-btn");
-const deleteButton = document.querySelector("#delete-btn");
+const hashtagsDiv = document.getElementById("hashtags");
+const hashtagsParent = document.getElementById("hashtagsParent");
+const items = hashtagsDiv.querySelectorAll(".item");
+const sendButton = document.getElementById("sendBtn");
+const processButton = document.getElementById("processBtn");
+const promptTextarea = document.getElementById("prompt");
+const resultDiv = document.getElementById("result");
+const hashtagModal = document.getElementById("hashtagModal");
+const toolbar = document.getElementById("toolbar");
+const openDrawer = document.getElementById("openDrawer");
+const scrollToTopBtn = document.getElementById("scrollToTop");
+const hashtagTemplate = `
+    <span class="btn btn-outline-primary btn-sm" data-toggle="dropdown" id="{{HASHTAG_SPAN}}" ondblclick="scrollToResult('{{HASHTAG_ID}}')">{{HASHTAG}}</span>
+    <div class="dropdown-menu border-0 p-0" aria-labelledby="{{HASHTAG_SPAN}}">
+        <div class="d-flex align-items-center">
+            <span class="btn btn-secondary btn-sm" data-toggle="modal" data-target="#hashtagModal" data-hashtagvalue="{{HASHTAG}}" data-hashtagid="{{HASHTAG_ID}}">Edit</span>
+            <span class="btn btn-secondary btn-sm" onClick="submitWriteRequest('{{HASHTAG_ID}}')" style="margin-left: 1px; margin-right: 1px;">Write</span>
+            <span class="btn btn-secondary btn-sm" onClick="removeHashtag('{{HASHTAG_ID}}')">Delete</span>
+        </div>
+    </div>`;
 
-let userText = null;
-const API_KEY = "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"; // Paste your API key here
+var currentContext = '';
+var canceled = false;
+var editable = true;
 
-const loadDataFromLocalstorage = () => {
-    // Load saved chats and theme from local storage and apply/add on the page
-    const themeColor = localStorage.getItem("themeColor");
+const addHashtagHtml = `<span class="btn btn-success btn-sm mx-1" id="add_hashtag" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Add new hashtag" data-toggle="modal" data-target="#hashtagModal">&nbsp;+&nbsp;</span>`;
 
-    document.body.classList.toggle("light-mode", themeColor === "light_mode");
-    themeButton.innerText = document.body.classList.contains("light-mode") ? "dark_mode" : "light_mode";
+const addSortItemListener = (item) => {
+    item.addEventListener("dragstart", () => {
+        setTimeout(() => item.classList.add("dragging"), 0);
+    });
+    item.addEventListener("dragend", () => item.classList.remove("dragging"));
+};
 
-    const defaultText = `<div class="default-text">
-                            <h1>ChatGPT Clone</h1>
-                            <p>Start a conversation and explore the power of AI.<br> Your chat history will be displayed here.</p>
-                        </div>`
+const createHashtagItem = (id) => {
+    divElement = document.createElement("div");
+    divElement.classList.add("dropdown", "item", "mx-1");
+    divElement.setAttribute("id", id);
+    divElement.setAttribute("draggable", "true");
+    divElement.setAttribute("data-bs-toggle", "tooltip");
+    divElement.setAttribute("data-bs-placement", "bottom");
+    return divElement;
+};
 
-    chatContainer.innerHTML = localStorage.getItem("all-chats") || defaultText;
-    chatContainer.scrollTo(0, chatContainer.scrollHeight); // Scroll to bottom of the chat container
+const initSortableList = (e) => {
+    e.preventDefault();
+    const draggingItem = document.querySelector(".dragging");
+    let siblings = [...hashtagsDiv.querySelectorAll(".item:not(.dragging)")];
+    let nextSibling = siblings.find(sibling => {
+        return e.clientX <= sibling.offsetLeft + sibling.offsetWidth / 2;
+    });
+
+    hashtagsDiv.insertBefore(draggingItem, nextSibling);
+    swapResultPosition(draggingItem, nextSibling)
+};
+
+const swapResultPosition = (item1, item2) => {
+    if (item1 && item2) {
+        resultId1 = "result_" + item1.id;
+        resultId2 = "result_" + item2.id;
+        result1 = document.getElementById(resultId1);
+        result2 = document.getElementById(resultId2);
+        if (result1 && result2) {
+            resultDiv.insertBefore(result1, result2);
+        }
+    }
+};
+
+const removeHashtag = (id) => {
+    document.getElementById(id).remove();
+    pElement = document.getElementById("result_" + id);
+    if (pElement) {
+        pElement.remove();
+        empty = true;
+        results = resultDiv.querySelectorAll(".result");
+        for (let i = 0; i < results.length; i++) {
+            if (results[i].textContent) {
+                empty = false;
+                break;
+            };
+        }
+        if (empty) {
+            resultDiv.style.display = "none";
+            toolbar.style.display = "none";
+        }
+    }
 }
 
-const createChatElement = (content, className) => {
-    // Create new div and apply chat, specified class and set html content of div
-    const chatDiv = document.createElement("div");
-    chatDiv.classList.add("chat", className);
-    chatDiv.innerHTML = content;
-    return chatDiv; // Return the created chat div
+const showTypingAnimation = (parent) => {
+    const html = `
+    <div class="typing-animation">
+        <div class="typing-dot" style="--delay: 0.2s"></div>
+        <div class="typing-dot" style="--delay: 0.3s"></div>
+        <div class="typing-dot" style="--delay: 0.4s"></div>
+    </div>`;
+    parent.innerHTML = html;
+};
+
+const updateHashtag = () => {
+    id = document.getElementById("hashtagId").value;
+    value = document.getElementById("hashtagValue").value;
+    if (id) {
+        if (value) {
+            document.getElementById(id).querySelector("span").textContent = value;
+            document.getElementById(id).setAttribute("title", "Edited");
+            pElement = document.getElementById("result_" + id);
+            if (pElement) {
+                pElement.setAttribute("data-toggle","tooltip");
+                pElement.setAttribute("title",value);
+            }
+        }
+    } else {
+        if (value) {
+            id = "hashtag_" + Date.now();
+            spanId = "span_" + id;
+            item = createHashtagItem(id);
+            item.setAttribute("title", "Manual added");
+            html = hashtagTemplate.replaceAll("{{HASHTAG}}", value);
+            html = html.replaceAll("{{HASHTAG_ID}}", id);
+            html = html.replaceAll("{{HASHTAG_SPAN}}", spanId);
+            item.innerHTML = html;
+            hashtagsDiv.insertBefore(item, null);
+            addSortItemListener(item);
+            pElement = document.createElement("p");
+            pElement.setAttribute("id", "result_" + id);
+            pElement.classList.add("result");
+            pElement.setAttribute("data-toggle","tooltip");
+            pElement.setAttribute("title",value);
+            resultDiv.appendChild(pElement);
+        }
+    }
+};
+
+const copyResult = () => {
+    content = resultDiv.textContent;
+    if (content == "") {
+        textArea = resultDiv.querySelector("textarea");
+        if (textArea) {
+            content = textArea.value;
+        }
+    }
+    navigator.clipboard.writeText(content);
+};
+
+const scrollToResult = (hastagId) => {
+    id = "result_" + hastagId;
+    pElement = document.getElementById(id);
+    if (pElement) {
+        pElement.scrollIntoView();
+    }
 }
 
-const getChatResponse = async (incomingChatDiv) => {
-    const API_URL = "http://localhost:8000"; // TODO
-    const pElement = document.createElement("p");
+const editResult = () => {
+    if (!editable) {
+        return;
+    }
+    content = resultDiv.textContent;
+    height = resultDiv.offsetHeight;
+    hashtagsDiv.textContent = "";
+    addHashtag = document.getElementById("add_hashtag");
+    if (addHashtag) {
+        addHashtag.remove();
+    }
+    processButton.style.display = "none";
+    resultDiv.textContent = "";
+    textArea = document.createElement("textarea");
+    textArea.value = content;
+    textArea.classList.add("form-control","border-0", "p-0");
+    textArea.offsetHeight = height;
+    textArea.setAttribute("style", "height: " + height + "px");
+    resultDiv.appendChild(textArea);
+    editable = false;
+}
 
-    // Define the properties and data for the API request
+const submitPrompt = async () => {
+    prompt = promptTextarea.value.trim();
+    if (!prompt) return;
+    hashtagsDiv.textContent = "";
+    addHashtag = document.getElementById("add_hashtag");
+    if (addHashtag) {
+        addHashtag.remove();
+    }
+    clearResult();
+    currentContext = "";
+    resultDiv.classList.add("border", "rounded");
+    const API_URL = BASE_URL + "/hashtags";
+    pElement = document.createElement("p");
+    showTypingAnimation(hashtagsDiv);
+    model = document.getElementById("model").value;
+    temperature = document.getElementById("temperature").value;
+    top_p = document.getElementById("top_p").value;
+    frequency_penalty = document.getElementById("frequency_penalty").value;
+    presence_penalty = document.getElementById("presence_penalty").value;
+
     const requestOptions = {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
-            // "Authorization": `Bearer ${API_KEY}`
         },
         body: JSON.stringify({
-            model: "text-davinci-003",
-            prompt: userText,
-            max_tokens: 2048,
-            temperature: 0.2,
-            n: 1,
-            stop: null
+            model: model,
+            prompt: prompt
+        })
+    }
+    try {
+        rawResponse = await fetch(API_URL, requestOptions)
+        if (rawResponse.status >= 400) {
+            errorText = await rawResponse.text();
+            alert(errorText);
+            hashtagsDiv.textContent = "";
+            return;
+        }
+        response = await rawResponse.json();
+        currentContext = response.context;
+        hashtagsDiv.textContent = "";
+        editable = true;
+        i = 0;
+        for (key in response.prompts) {
+            id = "hashtag_" + i;
+            spanId = "span_" + id;
+            item = createHashtagItem(id);
+            item.setAttribute("title", response.prompts[key]);
+            html = hashtagTemplate.replaceAll("{{HASHTAG}}", key);
+            html = html.replaceAll("{{HASHTAG_ID}}", id);
+            html = html.replaceAll("{{HASHTAG_SPAN}}", spanId);
+            item.innerHTML = html;
+            hashtagsDiv.appendChild(item);
+            addSortItemListener(item);
+            pElement = document.createElement("p");
+            pElement.setAttribute("id", "result_" + id);
+            pElement.classList.add("result");
+            pElement.setAttribute("data-toggle","tooltip");
+            pElement.setAttribute("title",key);
+            resultDiv.appendChild(pElement);
+            i += 1;
+        }
+        hashtagsParent.insertAdjacentHTML("beforeend", addHashtagHtml);
+        processButton.style.display = "block";
+    } catch (error) {
+        alert(error.message)
+        hashtagsDiv.textContent = "";
+    }
+};
+
+const processAll = async () => {
+    canceled = false;
+    processButton.textContent = "Stop";
+    processButton.classList.remove("btn-success");
+    processButton.classList.add("btn-danger");
+    processButton.removeEventListener("click", processAll);
+    processButton.addEventListener("click", stopProcess);
+    hashtags = [...hashtagsDiv.querySelectorAll(".item")];
+    for (let i = 0; i < hashtags.length; i++) {
+        if (canceled) {
+            console.log("break");
+            break;
+        }
+        item = hashtags[i];
+        pElement = document.getElementById("result_" + item.id);
+        if (pElement && pElement.textContent == "") {
+            await submitWriteRequest(item.id);
+        }
+    }
+    processButton.removeEventListener("click", stopProcess);
+    processButton.textContent = "Process All";
+    processButton.classList.remove("btn-danger");
+    processButton.classList.add("btn-success");
+    processButton.addEventListener("click", processAll);
+    processButton.removeAttribute("disabled");
+    console.log("addEventListener processAll");
+    canceled = false;
+}
+
+const insertResult = (element) => {
+    resultDiv.appendChild(element);
+    toolbar.style.display = "block";
+}
+
+const clearResult = () => {
+    resultDiv.textContent = "";
+    toolbar.style.display = "none";
+    resultDiv.style.display = "none";
+}
+
+const stopProcess = () => {
+    canceled = true;
+    processButton.setAttribute("disabled", "");
+}
+
+const openNav = () => {
+    document.getElementById("mySidenav").style.width = "220px";
+    document.getElementById("main").style.marginRight = "220px";
+    document.body.style.backgroundColor = "white";
+    openDrawer.style.display = "none";
+  }
+  
+const closeNav = () => {
+    document.getElementById("mySidenav").style.width = "0";
+    document.getElementById("main").style.marginRight= "0";
+    document.body.style.backgroundColor = "white";
+    openDrawer.style.display = "block";
+  }
+
+const submitWriteRequest = async (id) => {
+    prompt = document.getElementById(id).querySelector("span").textContent.trim();
+    if (!prompt) return;
+    const API_URL = BASE_URL + "/write";
+    pElement = document.getElementById("result_" + id);
+    if (!pElement) {
+        return;
+    }
+    resultDiv.style.display = "block";
+    showTypingAnimation(pElement);
+    model = document.getElementById("model").value;
+    temperature = document.getElementById("temperature").value;
+    top_p = document.getElementById("top_p").value;
+    frequency_penalty = document.getElementById("frequency_penalty").value;
+    presence_penalty = document.getElementById("presence_penalty").value;
+
+    const requestOptions = {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+            context: currentContext,
+            prompt: prompt,
+            model: model,
+            temperature: temperature,
+            top_p: top_p,
+            frequency_penalty: frequency_penalty,
+            presence_penalty: presence_penalty
         })
     }
 
-    // Send POST request to API, get response and set the reponse as paragraph element text
     try {
-        const response = await (await fetch(API_URL, requestOptions)).json();
-        // pElement.textContent = response.choices[0].text.trim();
-        pElement.textContent = response.answer.trim();
-    } catch (error) { // Add error class to the paragraph element and set error text
-        pElement.classList.add("error");
-        pElement.textContent = "Oops! Something went wrong while retrieving the response. Please try again.";
+        rawResponse = await fetch(API_URL, requestOptions)
+        if (rawResponse.status >= 400) {
+            errorText = await rawResponse.text();
+            alert(errorText);
+            pElement.textContent = "";
+        } else {
+            response = await rawResponse.text();
+            pElement.textContent = response;
+            if (pElement.textContent) {
+                toolbar.style.display = "block";
+            }
+            pElement.scrollIntoView();
+            span = document.getElementById("span_" + id);
+            if (span) {
+                span.classList.remove("btn-outline-primary");
+                span.classList.add("btn-primary");
+            }
+        }
+    } catch (error) {
+        alert(error.message)
+        pElement.textContent = "";
     }
-
-    // Remove the typing animation, append the paragraph element and save the chats to local storage
-    incomingChatDiv.querySelector(".typing-animation").remove();
-    incomingChatDiv.querySelector(".chat-details").appendChild(pElement);
-    localStorage.setItem("all-chats", chatContainer.innerHTML);
-    chatContainer.scrollTo(0, chatContainer.scrollHeight);
-}
-
-const copyResponse = (copyBtn) => {
-    // Copy the text content of the response to the clipboard
-    const reponseTextElement = copyBtn.parentElement.querySelector("p");
-    navigator.clipboard.writeText(reponseTextElement.textContent);
-    copyBtn.textContent = "done";
-    setTimeout(() => copyBtn.textContent = "content_copy", 1000);
-}
-
-const showTypingAnimation = () => {
-    // Display the typing animation and call the getChatResponse function
-    const html = `<div class="chat-content">
-                    <div class="chat-details">
-                        <img src="images/chatbot.jpg" alt="chatbot-img">
-                        <div class="typing-animation">
-                            <div class="typing-dot" style="--delay: 0.2s"></div>
-                            <div class="typing-dot" style="--delay: 0.3s"></div>
-                            <div class="typing-dot" style="--delay: 0.4s"></div>
-                        </div>
-                    </div>
-                    <span onclick="copyResponse(this)" class="material-symbols-rounded">content_copy</span>
-                </div>`;
-    // Create an incoming chat div with typing animation and append it to chat container
-    const incomingChatDiv = createChatElement(html, "incoming");
-    chatContainer.appendChild(incomingChatDiv);
-    chatContainer.scrollTo(0, chatContainer.scrollHeight);
-    getChatResponse(incomingChatDiv);
-}
-
-const handleOutgoingChat = () => {
-    userText = chatInput.value.trim(); // Get chatInput value and remove extra spaces
-    if(!userText) return; // If chatInput is empty return from here
-
-    // Clear the input field and reset its height
-    chatInput.value = "";
-    chatInput.style.height = `${initialInputHeight}px`;
-
-    const html = `<div class="chat-content">
-                    <div class="chat-details">
-                        <img src="images/user.jpg" alt="user-img">
-                        <p>${userText}</p>
-                    </div>
-                </div>`;
-
-    // Create an outgoing chat div with user's message and append it to chat container
-    const outgoingChatDiv = createChatElement(html, "outgoing");
-    chatContainer.querySelector(".default-text")?.remove();
-    chatContainer.appendChild(outgoingChatDiv);
-    chatContainer.scrollTo(0, chatContainer.scrollHeight);
-    setTimeout(showTypingAnimation, 500);
-}
-
-deleteButton.addEventListener("click", () => {
-    // Remove the chats from local storage and call loadDataFromLocalstorage function
-    if(confirm("Are you sure you want to delete all the chats?")) {
-        localStorage.removeItem("all-chats");
-        loadDataFromLocalstorage();
+    content = resultDiv.textContent;
+    if (content == "") {
+        resultDiv.style.display = "none";
     }
-});
+};
 
-themeButton.addEventListener("click", () => {
-    // Toggle body's class for the theme mode and save the updated theme to the local storage 
-    document.body.classList.toggle("light-mode");
-    localStorage.setItem("themeColor", themeButton.innerText);
-    themeButton.innerText = document.body.classList.contains("light-mode") ? "dark_mode" : "light_mode";
-});
+function scrollFunction() {
+  if (document.body.scrollTop > 100 || document.documentElement.scrollTop > 100) {
+    scrollToTopBtn.style.display = "block";
+  } else {
+    scrollToTopBtn.style.display = "none";
+  }
+}
 
-const initialInputHeight = chatInput.scrollHeight;
+function topFunction() {
+  document.body.scrollTop = 0;
+  document.documentElement.scrollTop = 0;
+}
 
-chatInput.addEventListener("input", () => {   
-    // Adjust the height of the input field dynamically based on its content
-    chatInput.style.height =  `${initialInputHeight}px`;
-    chatInput.style.height = `${chatInput.scrollHeight}px`;
-});
-
-chatInput.addEventListener("keydown", (e) => {
-    // If the Enter key is pressed without Shift and the window width is larger 
-    // than 800 pixels, handle the outgoing chat
-    if (e.key === "Enter" && !e.shiftKey && window.innerWidth > 800) {
-        e.preventDefault();
-        handleOutgoingChat();
-    }
-});
-
-loadDataFromLocalstorage();
-sendButton.addEventListener("click", handleOutgoingChat);
+hashtagsDiv.addEventListener("dragover", initSortableList);
+hashtagsDiv.addEventListener("dragenter", e => e.preventDefault());
+sendButton.addEventListener("click", submitPrompt);
+processButton.addEventListener("click", processAll);
+window.onscroll = function() {scrollFunction()};

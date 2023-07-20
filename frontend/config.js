@@ -1,0 +1,1 @@
+const BASE_URL = "BASE_URL_PLACEHOLDER";
