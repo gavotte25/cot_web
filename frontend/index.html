@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/css/bootstrap.min.css"
     integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
 
-  <title>Hello, world!</title>
+  <title>Cot Web</title>
 </head>
 
 <body>
@@ -25,9 +25,8 @@
         <label for="model">Model</label>
         <select class="custom-select custom-select-sm border rounded border-dark" id="model"
           style="font-size: 0.85em;">
-          <option value="text-davinci-003" selected>text-davinci-003</option>
-          <option value="text-ada-001">text-ada-001</option>
-          <option value="text-babbage-001">text-babbage-001</option>
+          <option value="gpt-3.5-turbo-16k" selected>gpt-3.5-turbo-16k</option>
+          <option value="gpt-3.5-turbo-16k-0613">gpt-3.5-turbo-16k-0613</option>
         </select>
       </div>
       <div class="form-group">
@@ -100,8 +99,10 @@
           <div class="modal-body">
             <form>
               <div class="form-group">
-                <label for="hashtagValue" class="col-form-label">Hashtag or idea:</label>
+                <label for="hashtagValue" class="col-form-label">Hashtag:</label>
                 <input type="text" class="form-control" id="hashtagValue">
+                <label for="hashtagContent" class="col-form-label">Content:</label>
+                <input type="text" class="form-control" id="hashtagContent">
               </div>
               <input type="hidden" id="hashtagId">
             </form>
@@ -133,9 +134,11 @@
       $('#hashtagModal').on('show.bs.modal', function (event) {
         var button = $(event.relatedTarget);
         var hashtagValue = button.data('hashtagvalue');
+        var hashtagContent = button.data('hashtagcontent');
         var hashtagId = button.data('hashtagid');
         var modal = $(this);
         modal.find('#hashtagValue').val(hashtagValue);
+        modal.find('#hashtagContent').val(hashtagContent);
         modal.find('#hashtagId').val(hashtagId);
       });
     });

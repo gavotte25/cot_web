@@ -13,13 +13,14 @@ const hashtagTemplate = `
     <span class="btn btn-outline-primary btn-sm" data-toggle="dropdown" id="{{HASHTAG_SPAN}}" ondblclick="scrollToResult('{{HASHTAG_ID}}')">{{HASHTAG}}</span>
     <div class="dropdown-menu border-0 p-0" aria-labelledby="{{HASHTAG_SPAN}}">
         <div class="d-flex align-items-center">
-            <span class="btn btn-secondary btn-sm" data-toggle="modal" data-target="#hashtagModal" data-hashtagvalue="{{HASHTAG}}" data-hashtagid="{{HASHTAG_ID}}">Edit</span>
+            <span class="btn btn-secondary btn-sm edit" data-toggle="modal" data-target="#hashtagModal" data-hashtagvalue="{{HASHTAG}}" data-hashtagid="{{HASHTAG_ID}}" data-hashtagcontent="{{HASHTAG_CONTENT}}">Edit</span>
             <span class="btn btn-secondary btn-sm" onClick="submitWriteRequest('{{HASHTAG_ID}}')" style="margin-left: 1px; margin-right: 1px;">Write</span>
             <span class="btn btn-secondary btn-sm" onClick="removeHashtag('{{HASHTAG_ID}}')">Delete</span>
         </div>
     </div>`;
 
-var currentContext = '';
+var currentContext = "";
+var currentLanguage = "English";
 var canceled = false;
 var editable = true;
 
@@ -99,25 +100,32 @@ const showTypingAnimation = (parent) => {
 const updateHashtag = () => {
     id = document.getElementById("hashtagId").value;
     value = document.getElementById("hashtagValue").value;
+    content = document.getElementById("hashtagContent").value;
     if (id) {
-        if (value) {
+        if (value && content) {
             document.getElementById(id).querySelector("span").textContent = value;
-            document.getElementById(id).setAttribute("title", "Edited");
+            document.getElementById(id).setAttribute("title", content);
+            document.getElementById(id).querySelector(".edit").setAttribute("data-hashtagvalue", value);
+            document.getElementById(id).querySelector(".edit").setAttribute("data-hashtagcontent", content);
             pElement = document.getElementById("result_" + id);
             if (pElement) {
                 pElement.setAttribute("data-toggle","tooltip");
                 pElement.setAttribute("title",value);
             }
+            innerHtml = document.getElementById(id).innerHTML;
+            document.getElementById(id).innerHTML = "";
+            document.getElementById(id).innerHTML = innerHtml;
         }
     } else {
-        if (value) {
+        if (value && content) {
             id = "hashtag_" + Date.now();
             spanId = "span_" + id;
             item = createHashtagItem(id);
-            item.setAttribute("title", "Manual added");
+            item.setAttribute("title", content);
             html = hashtagTemplate.replaceAll("{{HASHTAG}}", value);
             html = html.replaceAll("{{HASHTAG_ID}}", id);
             html = html.replaceAll("{{HASHTAG_SPAN}}", spanId);
+            html = html.replaceAll("{{HASHTAG_CONTENT}}", content);
             item.innerHTML = html;
             hashtagsDiv.insertBefore(item, null);
             addSortItemListener(item);
@@ -182,6 +190,7 @@ const submitPrompt = async () => {
     }
     clearResult();
     currentContext = "";
+    currentLanguage = "English"
     resultDiv.classList.add("border", "rounded");
     const API_URL = BASE_URL + "/hashtags";
     pElement = document.createElement("p");
@@ -212,6 +221,7 @@ const submitPrompt = async () => {
         }
         response = await rawResponse.json();
         currentContext = response.context;
+        currentLanguage = response.language;
         hashtagsDiv.textContent = "";
         editable = true;
         i = 0;
@@ -223,6 +233,7 @@ const submitPrompt = async () => {
             html = hashtagTemplate.replaceAll("{{HASHTAG}}", key);
             html = html.replaceAll("{{HASHTAG_ID}}", id);
             html = html.replaceAll("{{HASHTAG_SPAN}}", spanId);
+            html = html.replaceAll("{{HASHTAG_CONTENT}}", response.prompts[key]);
             item.innerHTML = html;
             hashtagsDiv.appendChild(item);
             addSortItemListener(item);
@@ -302,7 +313,7 @@ const closeNav = () => {
   }
 
 const submitWriteRequest = async (id) => {
-    prompt = document.getElementById(id).querySelector("span").textContent.trim();
+    prompt = document.getElementById(id).getAttribute("title");
     if (!prompt) return;
     const API_URL = BASE_URL + "/write";
     pElement = document.getElementById("result_" + id);
@@ -316,7 +327,6 @@ const submitWriteRequest = async (id) => {
     top_p = document.getElementById("top_p").value;
     frequency_penalty = document.getElementById("frequency_penalty").value;
     presence_penalty = document.getElementById("presence_penalty").value;
-
     const requestOptions = {
         method: "POST",
         headers: {
@@ -324,6 +334,7 @@ const submitWriteRequest = async (id) => {
         },
         body: JSON.stringify({
             context: currentContext,
+            language: currentLanguage,
             prompt: prompt,
             model: model,
             temperature: temperature,

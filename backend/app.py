@@ -18,15 +18,15 @@ def write():
    requestJson = request.get_json()
    input = requestJson['prompt']
    context = requestJson['context']
+   language = requestJson['language']
    model = requestJson['model']
    temperature = float(requestJson['temperature'])
    top_p = float(requestJson['top_p'])
    frequency_penalty = float(requestJson['frequency_penalty'])
    presence_penalty = float(requestJson['presence_penalty'])
    setting = Setting(model, temperature, frequency_penalty, presence_penalty, top_p)
-   return request_handler.get_writing(input, context, setting)
+   return request_handler.get_writing(input, context, language, setting)
 
 if __name__ == "__main__":
     from waitress import serve
-    print("Now")
     serve(app, host="0.0.0.0", port=5000)

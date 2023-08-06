@@ -1,55 +1,21 @@
-# cot_web
+# A writing assistant tool using OpenAI API
+## Ability: 
+- Receive a prompt and suggest ideas (mini-prompt)
+- User can add, modify, re-order mini-prompts
+- Provide interactive way to re-order writing results by manipulate mini-prompts, apply different parameters for each mini-prompts
+- Process mini-prompts one-by-one or process all
+- Avoid reach openAI tokens limit by dividing writing task into smaller tasks
 
-What kind of request is this?
-{
-    "type": First answer.
-    "word_count": Second anwser
-}
-
-Answer below question in json format:
-"type": What kind of request is this: "Viết một đoạn văn 100 từ về chủ nghĩa xã hội".
-"word_count". If this is a writing request, How many words it requires, 0 if not request?
-
-Writing, Question, Definition, 
-
-Answer below question in json format:
-"type": What kind of request is this: {{PROMPT}}.
-"word_count": If this is a writing request, How many words it requires, 0 if not request?
-"language": Language of the question
-
-Type: Writing, 
-
-Answer below question in json format:
-"type": What kind of request is this: "Viết bài văn phân tích tác phẩm chiếc lược ngà 1000 chữ"? 
-"word_count": How many words it requires, 0 if not request?
-"language": Language of the question?
-
-Answer below question in json format:
-"writing_request": Answer  1 for yes, 0 for no: Is this a writing request "Viết bài luận 1000 từ về suy thoái kinh tế 2008"?
-"word_count": If this is a writing request, How many words it requires, 0 if not request?
-"language": Language of the question?
-
-Write outline for this task: "Viết bài luận 1000 từ về suy thoái kinh tế 2008"?
-
-I. Introduction 
-A. Definition of Economic Recession 
-B. Overview of the 2008 Economic Recession 
-
-II. Causes of the 2008 Economic Recession 
-A. Subprime Mortgage Crisis 
-B. Overleveraged Financial Institutions 
-C. Poor Regulation of Financial Markets 
-
-III. Impact of the 2008 Economic Recession 
-A. Global Economic Slowdown 
-B. High Unemployment Rates 
-C. Decrease in Consumer Spending 
-
-IV. Government Responses to the 2008 Economic Recession 
-A. Stimulus Packages 
-B. Expansion of Social Safety Nets 
-C. Financial Market Regulations 
-
-V. Conclusion 
-A. Summary of Causes and Impacts 
-B. Long-Term Implications of the 2008 Economic Recession
+### How to install:
+```
+git clone https://github.com/gavotte25/cot_web.git
+cd cot_web
+docker compose up
+```
+### How to use web:
+- Step 1: Write a prompt and click
+- Step 2: Click "Submit"
+- Step 3: Review generated mini-prompt (optional)
+- Step 4: Click "Process All" or click on mini-prompt, click "Write" on the popup menu
+![Pic 1](https://drive.google.com/file/d/1XXZfp9nWuEXRwcZGAMpG5zk1qrm_WFIt/view?usp=drive_link)
+![Pic 2](https://drive.google.com/file/d/17ypD1yYXFs85m0DxDKrFaUaqhPQMKOwv/view?usp=sharing)
