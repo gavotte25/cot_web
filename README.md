@@ -17,5 +17,7 @@ docker compose up
 - Step 2: Click "Submit"
 - Step 3: Review generated mini-prompt (optional)
 - Step 4: Click "Process All" or click on mini-prompt, click "Write" on the popup menu
-![Pic 1](https://drive.google.com/file/d/1XXZfp9nWuEXRwcZGAMpG5zk1qrm_WFIt/view?usp=drive_link)
-![Pic 2](https://drive.google.com/file/d/17ypD1yYXFs85m0DxDKrFaUaqhPQMKOwv/view?usp=sharing)
+
+![How the web looks](image.png)
+
+![Popup menu of mini-prompt](image-1.png)
