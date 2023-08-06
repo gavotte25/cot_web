@@ -10,6 +10,13 @@
 ```
 git clone https://github.com/gavotte25/cot_web.git
 cd cot_web
+```
+Create an '.env' file in cot_web folder to save your Open API Key. Check it here https://platform.openai.com/account/api-keys
+```
+API_KEY=[YOUR OPENAI API KEY]
+```
+Finally,
+```
 docker compose up
 ```
 ### How to use web:
