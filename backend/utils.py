@@ -107,8 +107,8 @@ class OpenApiHandler:
                 if not self.processing:
                     if self.__compare_and_set_processing(False, True):
                         break
-            else:
-                return 'Server is busy, please retry later', 503
+                    else:
+                        return 'Server is busy, please retry later', 503
         else:
             self.processed_epoch = time.time()
             self.processing = True
